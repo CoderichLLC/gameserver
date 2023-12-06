@@ -7,6 +7,7 @@ class TelnetSocket {
   #config;
 
   constructor(config) {
+    this.id = Math.random().toString(36).substring(7);
     this.#config = config;
   }
 
