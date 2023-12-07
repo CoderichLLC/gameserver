@@ -16,7 +16,7 @@ class WebSocket {
 
   query(event, data, ms) {
     return Util.timeoutRace(new Promise((resolve, reject) => {
-      this.#config.server.once(event, ({ data: response }) => resolve(response));
+      this.#config.socket.once(event, resolve);
       this.#config.socket.emit(event, data);
     }), ms);
   }
@@ -39,7 +39,7 @@ module.exports = class SocketServer extends EventEmitter {
     this.#socketServer = SocketIO(this.#httpServer);
 
     this.#socketServer.on('connection', (sock) => {
-      const socket = new WebSocket({ server: this, socket: sock });
+      const socket = new WebSocket({ socket: sock });
       this.#sockets.push(socket);
       this.emit('connect', { socket });
 

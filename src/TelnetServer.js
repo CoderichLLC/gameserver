@@ -19,7 +19,7 @@ class TelnetSocket {
 
   query(event, data, ms) {
     return Util.timeoutRace(new Promise((resolve) => {
-      this.#config.server.once(event, ({ data: response }) => resolve(response));
+      this.#config.gmcp.once(`gmcp/${this.#config.namespace}.${event}`, resolve);
       this.#config.gmcp.send(this.#config.namespace, event, data);
     }), ms);
   }
@@ -44,7 +44,7 @@ module.exports = class TelnetServer extends EventEmitter {
       remoteOptions: [GMCP, ECHO],
     }, (sock) => {
       const gmcp = sock.getOption(GMCP);
-      const socket = new TelnetSocket({ server: this, socket: sock, gmcp, ...this.#config });
+      const socket = new TelnetSocket({ socket: sock, gmcp, ...this.#config });
       this.#sockets.push(socket);
 
       sock.on('negotiated', () => {
