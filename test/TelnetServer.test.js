@@ -33,16 +33,26 @@ describe('TelnetServer', () => {
       gmcp.send('telnet', 'data', { hello: 'world' });
     });
 
-    server.once('data', ({ socket, data }) => {
+    server.once('data', async ({ socket, data }) => {
       expect(data).toMatchObject({ hello: 'world' });
       expect(onData).toHaveBeenCalledTimes(1);
       expect(onConnect).toHaveBeenCalledTimes(1);
       expect(onDisconnect).not.toHaveBeenCalled();
+
+      // Query/Response
+      const response = await socket.query('username');
+      expect(response).toBe('username');
+      await expect(socket.query('password', {}, 100)).rejects.toThrow('timeout');
+
       socket.emit('data', { goodbye: 'test' });
     });
 
     const client = TelnetLib.createConnection({ port: 23, remoteOptions: [GMCP] }, async () => {
       gmcp = client.getOption(GMCP);
+
+      gmcp.on('gmcp/telnet.username', (data) => {
+        gmcp.send('telnet', 'username', 'username');
+      });
 
       gmcp.on('gmcp/telnet.data', (data) => {
         expect(data).toMatchObject({ goodbye: 'test' });

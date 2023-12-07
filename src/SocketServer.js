@@ -1,6 +1,30 @@
 const HTTP = require('http');
 const EventEmitter = require('events');
 const SocketIO = require('socket.io');
+const Util = require('./Util');
+
+class WebSocket {
+  #config;
+
+  constructor(config) {
+    this.#config = config;
+  }
+
+  emit(...args) {
+    this.#config.socket.emit(...args);
+  }
+
+  query(event, data, ms) {
+    return Util.timeoutRace(new Promise((resolve, reject) => {
+      this.#config.server.once(event, ({ data: response }) => resolve(response));
+      this.#config.socket.emit(event, data);
+    }), ms);
+  }
+
+  disconnect(...args) {
+    this.#config.socket.disconnect(...args);
+  }
+}
 
 module.exports = class SocketServer extends EventEmitter {
   #config;
@@ -14,19 +38,20 @@ module.exports = class SocketServer extends EventEmitter {
     this.#httpServer = HTTP.createServer();
     this.#socketServer = SocketIO(this.#httpServer);
 
-    this.#socketServer.on('connection', (socket) => {
+    this.#socketServer.on('connection', (sock) => {
+      const socket = new WebSocket({ server: this, socket: sock });
       this.#sockets.push(socket);
       this.emit('connect', { socket });
 
-      socket.onAny((eventName, data) => {
+      sock.onAny((eventName, data) => {
         this.emit(eventName, { socket, data });
       });
 
-      socket.on('disconnecting', (reason) => {
+      sock.on('disconnecting', (reason) => {
         this.emit('disconnecting', { socket, reason });
       });
 
-      socket.on('disconnect', (reason) => {
+      sock.on('disconnect', (reason) => {
         this.emit('disconnect', { socket, reason });
       });
     });

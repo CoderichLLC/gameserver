@@ -36,7 +36,21 @@ describe('SocketServer', () => {
       expect(onData).toHaveBeenCalledTimes(1);
       expect(onConnect).toHaveBeenCalledTimes(1);
       expect(onDisconnect).not.toHaveBeenCalled();
+
+      // Query/Response
+      const response = await socket.query('username');
+      expect(response).toBe('username');
+      await expect(socket.query('password', {}, 100)).rejects.toThrow('timeout');
+
       socket.emit('data', { goodbye: 'test' });
+    });
+
+    client.on('username', () => {
+      client.emit('username', 'username');
+    });
+
+    client.on('data', (data) => {
+      expect(data).toMatchObject({ goodbye: 'test' });
       done();
     });
   });
