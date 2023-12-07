@@ -1,3 +1,4 @@
+const Crypto = require('crypto');
 const EventEmitter = require('events');
 const TelnetLib = require('telnetlib');
 
@@ -7,7 +8,7 @@ class TelnetSocket {
   #config;
 
   constructor(config) {
-    this.id = Math.random().toString(36).substring(7);
+    this.id = Crypto.randomBytes(12).toString('hex');
     this.#config = config;
   }
 
