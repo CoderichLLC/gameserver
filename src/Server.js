@@ -8,7 +8,7 @@ class Server {
     const servers = Object.entries(config).map(([key, value]) => new serverMap[key](value));
 
     return new Proxy(this, {
-      get(target, method) {
+      get(target, method, rec) {
         switch (method) {
           case 'start': return () => Promise.all(servers.map(server => server.start()));
           case 'stop': return () => Promise.all(servers.map(server => server.stop()));
@@ -22,6 +22,7 @@ class Server {
               }
             }));
           };
+          case 'then': return Reflect.get(target, method, rec);
           default: return (...args) => {
             return servers.map(server => server[method].call(server, ...args)).shift();
           };
