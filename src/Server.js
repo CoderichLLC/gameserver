@@ -1,7 +1,12 @@
+const REPLServer = require('./REPLServer');
 const SocketServer = require('./SocketServer');
 const TelnetServer = require('./TelnetServer');
 
-const serverMap = { socket: SocketServer, telnet: TelnetServer };
+const serverMap = {
+  repl: REPLServer,
+  socket: SocketServer,
+  telnet: TelnetServer,
+};
 
 class Server {
   constructor(config = {}) {
@@ -37,6 +42,7 @@ class Server {
     new Server({
       telnet: { port: 23, namespace: 'telnet' },
       socket: { port: 3000 },
+      repl: { port: 4000 },
     }).start();
   }
 })();

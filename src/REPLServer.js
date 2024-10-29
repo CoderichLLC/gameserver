@@ -1,11 +1,9 @@
+const Net = require('net');
 const Crypto = require('crypto');
 const EventEmitter = require('events');
-const TelnetLib = require('telnetlib');
 const Util = require('./Util');
 
-const { GMCP, ECHO } = TelnetLib.options;
-
-class TelnetSocket {
+class Socket {
   #config;
 
   constructor(config) {
@@ -14,12 +12,12 @@ class TelnetSocket {
   }
 
   emit(event, data) {
-    this.#config.gmcp.send(this.#config.namespace, event, data);
+    this.#config.socket.write(data);
   }
 
   query(event, data, ms) {
     return Util.timeoutRace(new Promise((resolve) => {
-      this.#config.gmcp.once(`gmcp/${this.#config.namespace}.${event}`, resolve);
+      this.#config.socket.once('data', response => resolve(response.toString().trim()));
       this.emit(event, data);
     }), ms);
   }
@@ -30,29 +28,21 @@ class TelnetSocket {
   }
 }
 
-module.exports = class TelnetServer extends EventEmitter {
+module.exports = class REPLServer extends EventEmitter {
   #config;
   #server;
   #sockets = [];
 
-  constructor(config) {
+  constructor(config = {}) {
     super();
     this.#config = config;
-
-    this.#server = TelnetLib.createServer({
-      localOptions: [GMCP, ECHO],
-      remoteOptions: [GMCP, ECHO],
-    }, (sock) => {
-      const gmcp = sock.getOption(GMCP);
-      const socket = new TelnetSocket({ socket: sock, gmcp, ...this.#config });
+    this.#server = Net.createServer((sock) => {
+      const socket = new Socket({ socket: sock });
       this.#sockets.push(socket);
+      this.emit('connect', { socket });
 
-      sock.on('negotiated', () => {
-        this.emit('connect', { socket });
-      });
-
-      gmcp.on('gmcp', (ns, event, data) => {
-        if (ns === config.namespace) this.emit(event, { socket, data });
+      sock.on('data', (data) => {
+        this.emit('data', { socket, data: data.toString().trim() });
       });
 
       sock.on('error', (error) => {

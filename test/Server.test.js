@@ -1,3 +1,4 @@
+const Net = require('net');
 const TelnetLib = require('telnetlib');
 const SocketClient = require('socket.io-client');
 const Server = require('../src/Server');
@@ -9,6 +10,7 @@ describe('Server', () => {
   const onConnect = jest.fn();
   const onDisconnect = jest.fn();
   const server = new Server({
+    repl: { port: 5001 },
     socket: { port: 3001 },
     telnet: { port: 22, namespace: 'telnet' },
   });
@@ -75,9 +77,29 @@ describe('Server', () => {
     });
   });
 
+  test('repl client', (done) => {
+    const client = Net.createConnection({ port: 5001 });
+
+    server.once('connect', () => {
+      expect(onData).not.toHaveBeenCalled();
+      expect(onConnect).toHaveBeenCalledTimes(1);
+      expect(onDisconnect).not.toHaveBeenCalled();
+      client.write('hello world');
+    });
+
+    server.once('data', async ({ socket, data }) => {
+      expect(data).toEqual('hello world');
+      expect(onData).toHaveBeenCalledTimes(1);
+      expect(onConnect).toHaveBeenCalledTimes(1);
+      expect(onDisconnect).not.toHaveBeenCalled();
+      client.write('goodbye test');
+      done();
+    });
+  });
+
   test('stop', async () => {
     await server.stop();
-    expect(onDisconnect).toHaveBeenCalledTimes(2);
+    expect(onDisconnect).toHaveBeenCalledTimes(3);
     expect(1).toBe(1);
   });
 });

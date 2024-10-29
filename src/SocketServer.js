@@ -17,7 +17,7 @@ class WebSocket {
   query(event, data, ms) {
     return Util.timeoutRace(new Promise((resolve, reject) => {
       this.#config.socket.once(event, resolve);
-      this.#config.socket.emit(event, data);
+      this.emit(event, data);
     }), ms);
   }
 
