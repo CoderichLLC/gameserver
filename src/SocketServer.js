@@ -1,4 +1,5 @@
 const HTTP = require('http');
+const Crypto = require('crypto');
 const EventEmitter = require('events');
 const SocketIO = require('socket.io');
 const Util = require('./Util');
@@ -7,11 +8,25 @@ class WebSocket {
   #config;
 
   constructor(config) {
+    this.id = Crypto.randomBytes(12).toString('hex');
+    this.kind = 'socket';
     this.#config = config;
   }
 
   emit(...args) {
     this.#config.socket.emit(...args);
+  }
+
+  write(line) {
+    this.#config.socket.emit('write', line);
+  }
+
+  writeln(line) {
+    this.#config.socket.emit('writeln', line);
+  }
+
+  prompt(data, ms) {
+    return this.query('prompt', data, ms);
   }
 
   query(event, data, ms) {

@@ -9,3 +9,15 @@ exports.timeoutRace = (promise, ms) => {
     }),
   ]);
 };
+
+exports.defineOnce = (socket) => {
+  return Object.defineProperty(socket, 'once', {
+    value: (event, fn) => {
+      const onData = (buff) => {
+        socket.off(event, onData);
+        fn(buff);
+      };
+      socket.on(event, onData);
+    },
+  });
+};

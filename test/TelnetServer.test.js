@@ -1,13 +1,14 @@
 const TelnetLib = require('telnetlib');
 const TelnetServer = require('../src/TelnetServer');
 
+const port = 2233;
 const { GMCP } = TelnetLib.options;
 
 describe('TelnetServer', () => {
   const onData = jest.fn();
   const onConnect = jest.fn();
   const onDisconnect = jest.fn();
-  const server = new TelnetServer({ namespace: 'telnet', port: 23 });
+  const server = new TelnetServer({ namespace: 'telnet', port });
   server.on('data', onData);
   server.on('connect', onConnect);
   server.on('disconnect', onDisconnect);
@@ -47,7 +48,7 @@ describe('TelnetServer', () => {
       socket.emit('data', { goodbye: 'test' });
     });
 
-    const client = TelnetLib.createConnection({ port: 23, remoteOptions: [GMCP] }, async () => {
+    const client = TelnetLib.createConnection({ port, remoteOptions: [GMCP], localOptions: [GMCP] }, async () => {
       gmcp = client.getOption(GMCP);
 
       gmcp.on('gmcp/telnet.username', (data) => {

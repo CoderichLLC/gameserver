@@ -8,7 +8,20 @@ class Socket {
 
   constructor(config) {
     this.id = Crypto.randomBytes(12).toString('hex');
+    this.kind = 'repl';
     this.#config = config;
+  }
+
+  write(line) {
+    this.#config.socket.write(line);
+  }
+
+  writeln(line) {
+    this.#config.socket.write(`${line}\r\n`);
+  }
+
+  prompt(data, ms) {
+    return this.query('prompt', data, ms);
   }
 
   emit(event, data) {
@@ -17,7 +30,7 @@ class Socket {
 
   query(event, data, ms) {
     return Util.timeoutRace(new Promise((resolve) => {
-      this.#config.socket.once('data', response => resolve(response.toString().trim()));
+      this.#config.socket.once('data', buff => resolve(buff.toString().trim()));
       this.emit(event, data);
     }), ms);
   }
@@ -37,6 +50,7 @@ module.exports = class REPLServer extends EventEmitter {
     super();
     this.#config = config;
     this.#server = Net.createServer((sock) => {
+      Util.defineOnce(sock);
       const socket = new Socket({ socket: sock });
       this.#sockets.push(socket);
       this.emit('connect', { socket });

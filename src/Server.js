@@ -1,8 +1,10 @@
+const WebServer = require('./WebServer');
 const REPLServer = require('./REPLServer');
 const SocketServer = require('./SocketServer');
 const TelnetServer = require('./TelnetServer');
 
 const serverMap = {
+  web: WebServer,
   repl: REPLServer,
   socket: SocketServer,
   telnet: TelnetServer,
