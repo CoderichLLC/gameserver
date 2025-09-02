@@ -4,20 +4,18 @@ const EventEmitter = require('events');
 const Util = require('./Util');
 
 class Socket {
-  #config;
-
   constructor(config) {
     this.id = Crypto.randomBytes(12).toString('hex');
     this.kind = 'repl';
-    this.#config = config;
+    this.socket = config.socket;
   }
 
   write(line) {
-    this.#config.socket.write(line);
+    this.socket.write(line);
   }
 
   writeln(line) {
-    this.#config.socket.write(`${line}\r\n`);
+    this.socket.write(`${line}\r\n`);
   }
 
   prompt(data, ms) {
@@ -25,19 +23,18 @@ class Socket {
   }
 
   emit(event, data) {
-    this.#config.socket.write(data);
+    this.socket.write(data);
   }
 
   query(event, data, ms) {
     return Util.timeoutRace(new Promise((resolve) => {
-      this.#config.socket.once('data', buff => resolve(buff.toString().trim()));
+      this.socket.once('data', buff => resolve(buff.toString().trim()));
       this.emit(event, data);
     }), ms);
   }
 
   disconnect(reason) {
-    const { socket } = this.#config;
-    Object.assign(socket, { reason }).end();
+    Object.assign(this.socket, { reason }).end();
   }
 }
 

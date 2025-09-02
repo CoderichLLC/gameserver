@@ -5,24 +5,22 @@ const SocketIO = require('socket.io');
 const Util = require('./Util');
 
 class WebSocket {
-  #config;
-
   constructor(config) {
     this.id = Crypto.randomBytes(12).toString('hex');
     this.kind = 'socket';
-    this.#config = config;
+    this.socket = config.socket;
   }
 
   emit(...args) {
-    this.#config.socket.emit(...args);
+    this.socket.emit(...args);
   }
 
   write(line) {
-    this.#config.socket.emit('write', line);
+    this.socket.emit('write', line);
   }
 
   writeln(line) {
-    this.#config.socket.emit('writeln', line);
+    this.socket.emit('writeln', line);
   }
 
   prompt(data, ms) {
@@ -31,13 +29,13 @@ class WebSocket {
 
   query(event, data, ms) {
     return Util.timeoutRace(new Promise((resolve, reject) => {
-      this.#config.socket.once(event, resolve);
+      this.socket.once(event, resolve);
       this.emit(event, data);
     }), ms);
   }
 
   disconnect(...args) {
-    this.#config.socket.disconnect(...args);
+    this.socket.disconnect(...args);
   }
 }
 

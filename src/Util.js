@@ -21,3 +21,20 @@ exports.defineOnce = (socket) => {
     },
   });
 };
+
+exports.bufferDataLine = (buffer, data, onLine) => {
+  for (const ch of data) {
+    if (ch === '\r' || ch === '\n' || ch === '\0') {
+      onLine(buffer);
+      buffer = '';
+    } else if (ch === '\x08' || ch === '\x7f') {
+      buffer = buffer.slice(0, -1);
+    } else if (ch === '\x1b') {
+      // ignore
+    } else {
+      buffer += ch;
+    }
+  }
+
+  return buffer;
+};

@@ -3,7 +3,7 @@ const TelnetLib = require('telnetlib');
 const SocketClient = require('socket.io-client');
 const Server = require('../src/Server');
 
-const { GMCP } = TelnetLib.options;
+const { GMCP, ECHO, SGA } = TelnetLib.options;
 
 describe('Server', () => {
   const onData = jest.fn();
@@ -12,7 +12,7 @@ describe('Server', () => {
   const server = new Server({
     repl: { port: 5001 },
     socket: { port: 3001 },
-    telnet: { port: 22, namespace: 'telnet' },
+    telnet: { port: 22, namespace: 'telnet', localOptions: [GMCP, ECHO, SGA], remoteOptions: [GMCP, ECHO, SGA] },
   });
   server.on('data', onData);
   server.on('connect', onConnect);
@@ -67,7 +67,7 @@ describe('Server', () => {
       socket.emit('data', { goodbye: 'test' });
     });
 
-    const client = TelnetLib.createConnection({ port: 22, remoteOptions: [GMCP] }, async () => {
+    const client = TelnetLib.createConnection({ port: 22, localOptions: [GMCP] }, async () => {
       gmcp = client.getOption(GMCP);
 
       gmcp.on('gmcp/telnet.data', (data) => {

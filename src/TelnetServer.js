@@ -3,57 +3,63 @@ const EventEmitter = require('events');
 const TelnetLib = require('telnetlib');
 const Util = require('./Util');
 
-const { GMCP, ECHO } = TelnetLib.options;
+const dataSymbol = Symbol('data');
+const { GMCP, ECHO, SGA } = TelnetLib.options;
 
 class TelnetSocket {
-  #config;
-
   constructor(config) {
     this.id = Crypto.randomBytes(12).toString('hex');
     this.kind = 'telnet';
-    this.#config = config;
+    this.buffer = '';
+    this.socket = config.socket;
+    this.namespace = config.namespace;
+  }
+
+  getOption(kind) {
+    return this.socket.getOption(kind);
   }
 
   gmcp(ns, event, data) {
-    if (this.#config.socket.gmcpEnabled) this.#config.gmcp.send(ns, event, data);
+    const gmcp = this.socket.getOption(GMCP);
+    if (gmcp.enabledRemote) gmcp.send(ns, event, data);
   }
 
   write(line) {
-    this.#config.socket.write(line);
+    this.socket.write(line);
   }
 
   writeln(line) {
-    this.#config.socket.write(`${line}\r\n`);
+    this.socket.write(`${line}\r\n`);
   }
 
   emit(event, data) {
-    this.#config.gmcp.send(this.#config.namespace, event, data);
+    const gmcp = this.socket.getOption(GMCP);
+    if (gmcp.enabledRemote) gmcp.send(this.namespace, event, data);
   }
 
   prompt(data, ms) {
     return Util.timeoutRace(new Promise((resolve) => {
-      this.#config.socket.once('data', buff => resolve(buff.toString().trim()));
-      this.writeln(data);
+      this.socket.once(dataSymbol, resolve);
+      this.write(data);
     }), ms);
   }
 
   query(event, data, ms) {
-    const { gmcp, socket, namespace } = this.#config;
+    const gmcp = this.socket.getOption(GMCP);
 
     return Util.timeoutRace(new Promise((resolve) => {
-      if (socket.gmcpEnabled) {
-        gmcp.once(`gmcp/${namespace}.${event}`, resolve);
+      if (gmcp.enabledRemote) {
+        gmcp.once(`gmcp/${this.namespace}.${event}`, resolve);
         this.emit(event, data);
       } else {
-        socket.once('data', buff => resolve(buff.toString().trim()));
+        this.socket.once(dataSymbol, resolve);
         this.writeln(data);
       }
     }), ms);
   }
 
   disconnect(reason) {
-    const { socket } = this.#config;
-    Object.assign(socket, { reason }).end();
+    Object.assign(this.socket, { reason }).end();
   }
 }
 
@@ -65,35 +71,23 @@ module.exports = class TelnetServer extends EventEmitter {
   constructor(config) {
     super();
     this.#config = config;
+    const { namespace, localOptions, remoteOptions } = this.#config;
 
-    this.#server = TelnetLib.createServer({
-      localOptions: [GMCP, ECHO],
-      remoteOptions: [GMCP, ECHO],
-    }, (sock) => {
+    this.#server = TelnetLib.createServer({ localOptions, remoteOptions }, (sock) => {
       Util.defineOnce(sock);
       const gmcp = sock.getOption(GMCP);
-      const socket = new TelnetSocket({ socket: sock, gmcp, ...this.#config });
+      const socket = new TelnetSocket({ socket: sock, namespace });
       this.#sockets.push(socket);
-
-      sock.on('enable', (opt, at) => {
-        if (opt === GMCP) sock.gmcpEnabled = true;
-      });
-
-      sock.on('disable', (opt, at) => {
-        if (opt === GMCP) sock.gmcpEnabled = false;
-      });
 
       sock.on('negotiated', () => {
         this.emit('connect', { socket });
       });
 
-      gmcp.on('gmcp', (ns, event, data) => {
-        this.emit(`gmcp/${ns}.${event}`, { socket, data });
-        if (ns === config.namespace) this.emit(event, { socket, data });
-      });
-
       sock.on('data', (buff) => {
-        this.emit('data', { socket, data: buff.toString().trim() });
+        const data = buff.toString('utf8');
+        if (sock.getOption(ECHO).enabledLocal) this.emit('echo', { socket, data });
+        if (sock.getOption(SGA).enabledRemote) socket.buffer = Util.bufferDataLine(socket.buffer, data, line => this.emit('data', { socket, data: line }));
+        else this.emit('data', { socket, data: data.trim() });
       });
 
       sock.on('error', (error) => {
@@ -103,6 +97,15 @@ module.exports = class TelnetServer extends EventEmitter {
       sock.on('end', () => {
         this.emit('disconnect', { socket, reason: sock.reason });
       });
+
+      gmcp.on('gmcp', (ns, event, data) => {
+        this.emit(`gmcp/${ns}.${event}`, { socket, data });
+        if (ns === namespace) this.emit(event, { socket, data });
+      });
+    });
+
+    this.on('data', ({ socket, data }) => {
+      socket.socket.emit(dataSymbol, data);
     });
   }
 
@@ -123,4 +126,6 @@ module.exports = class TelnetServer extends EventEmitter {
       });
     });
   }
+
+  static options = TelnetLib.options;
 };

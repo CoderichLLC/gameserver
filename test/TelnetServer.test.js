@@ -2,13 +2,18 @@ const TelnetLib = require('telnetlib');
 const TelnetServer = require('../src/TelnetServer');
 
 const port = 2233;
-const { GMCP } = TelnetLib.options;
+const { GMCP, ECHO, SGA } = TelnetServer.options;
 
 describe('TelnetServer', () => {
   const onData = jest.fn();
   const onConnect = jest.fn();
   const onDisconnect = jest.fn();
-  const server = new TelnetServer({ namespace: 'telnet', port });
+  const server = new TelnetServer({
+    port,
+    namespace: 'telnet',
+    localOptions: [GMCP, ECHO, SGA],
+    remoteOptions: [GMCP, ECHO, SGA],
+  });
   server.on('data', onData);
   server.on('connect', onConnect);
   server.on('disconnect', onDisconnect);
